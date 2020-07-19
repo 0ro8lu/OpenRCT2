@@ -37,9 +37,6 @@ constexpr const uint32_t MAX_TILE_ELEMENTS_WITH_SPARE_ROOM = 0x30000;
 constexpr const uint32_t MAX_TILE_ELEMENTS = MAX_TILE_ELEMENTS_WITH_SPARE_ROOM - 512;
 #define MAX_TILE_TILE_ELEMENT_POINTERS (MAXIMUM_MAP_SIZE_TECHNICAL * MAXIMUM_MAP_SIZE_TECHNICAL)
 #define MAX_PEEP_SPAWNS 2
-#define PEEP_SPAWN_UNDEFINED 0xFFFF
-
-#define TILE_ELEMENT_LARGE_TYPE_MASK 0x3FF
 
 #define TILE_UNDEFINED_TILE_ELEMENT NULL
 
@@ -160,6 +157,7 @@ BannerElement* map_get_banner_element_at(const CoordsXYZ& bannerPos, uint8_t dir
 SurfaceElement* map_get_surface_element_at(const CoordsXY& coords);
 PathElement* map_get_path_element_at(const TileCoordsXYZ& loc);
 WallElement* map_get_wall_element_at(const CoordsXYZD& wallCoords);
+WallElement* map_get_wall_element_at(const CoordsXYRangedZ& coords);
 SmallSceneryElement* map_get_small_scenery_element_at(const CoordsXYZ& sceneryCoords, int32_t type, uint8_t quadrant);
 EntranceElement* map_get_park_entrance_element_at(const CoordsXYZ& entranceCoords, bool ghost);
 EntranceElement* map_get_ride_entrance_element_at(const CoordsXYZ& entranceCoords, bool ghost);

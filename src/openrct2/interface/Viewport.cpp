@@ -1073,27 +1073,12 @@ ScreenCoordsXY screen_coord_to_viewport_coord(rct_viewport* viewport, const Scre
 
 CoordsXY viewport_coord_to_map_coord(const ScreenCoordsXY& coords, int32_t z)
 {
-    CoordsXY ret{};
-    switch (get_current_rotation())
-    {
-        case 0:
-            ret.x = -coords.x / 2 + coords.y + z;
-            ret.y = coords.x / 2 + coords.y + z;
-            break;
-        case 1:
-            ret.x = -coords.x / 2 - coords.y - z;
-            ret.y = -coords.x / 2 + coords.y + z;
-            break;
-        case 2:
-            ret.x = coords.x / 2 - coords.y - z;
-            ret.y = -coords.x / 2 - coords.y - z;
-            break;
-        case 3:
-            ret.x = coords.x / 2 + coords.y + z;
-            ret.y = coords.x / 2 - coords.y - z;
-            break;
-    }
-    return ret;
+    constexpr uint8_t inverseRotationMapping[NumOrthogonalDirections] = { 0, 3, 2, 1 };
+
+    // Reverse of translate_3d_to_2d_with_z
+    CoordsXY ret = { coords.y - coords.x / 2 + z, coords.y + coords.x / 2 + z };
+    auto inverseRotation = inverseRotationMapping[get_current_rotation()];
+    return ret.Rotate(inverseRotation);
 }
 
 /**
@@ -1451,8 +1436,8 @@ static bool is_sprite_interacted_with_palette_set(
     }
 
     int32_t round = std::max(1, 1 * dpi->zoom_level);
-    auto origin = coords;
 
+    auto origin = coords;
     if (g1->flags & G1_FLAG_RLE_COMPRESSION)
     {
         origin.y -= (round - 1);
@@ -1614,8 +1599,7 @@ InteractionInfo set_interaction_info_from_paint_session(paint_session* session, 
 
         for (attached_paint_struct* attached_ps = ps->attached_ps; attached_ps != nullptr; attached_ps = attached_ps->next)
         {
-            if (is_sprite_interacted_with(
-                    dpi, attached_ps->image_id, { (attached_ps->x + ps->x) & 0xFFFF, (attached_ps->y + ps->y) & 0xFFFF }))
+            if (is_sprite_interacted_with(dpi, attached_ps->image_id, { (attached_ps->x + ps->x), (attached_ps->y + ps->y) }))
             {
                 if (PSSpriteTypeIsInFilter(ps, filter))
                 {

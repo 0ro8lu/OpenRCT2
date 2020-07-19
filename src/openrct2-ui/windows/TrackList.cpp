@@ -17,7 +17,7 @@
 #include <openrct2/core/String.hpp>
 #include <openrct2/drawing/IDrawingEngine.h>
 #include <openrct2/localisation/Localisation.h>
-#include <openrct2/rct1/RCT1.h>
+#include <openrct2/ride/RideData.h>
 #include <openrct2/ride/TrackDesign.h>
 #include <openrct2/ride/TrackDesignRepository.h>
 #include <openrct2/sprites.h>
@@ -519,7 +519,7 @@ static void window_track_list_paint(rct_window* w, rct_drawpixelinfo* dpi)
     rct_widget* widget = &window_track_list_widgets[WIDX_TRACK_PREVIEW];
     auto screenPos = w->windowPos + ScreenCoordsXY{ widget->left + 1, widget->top + 1 };
     colour = ColourMapA[w->colours[0]].darkest;
-    gfx_fill_rect(dpi, screenPos.x, screenPos.y, screenPos.x + 369, screenPos.y + 216, colour);
+    gfx_fill_rect(dpi, { screenPos, screenPos + ScreenCoordsXY{ 369, 216 } }, colour);
 
     if (_loadedTrackDesignIndex != trackIndex)
     {
@@ -771,30 +771,15 @@ static void window_track_list_scrollpaint(rct_window* w, rct_drawpixelinfo* dpi,
 static void track_list_load_designs(RideSelection item)
 {
     auto repo = OpenRCT2::GetContext()->GetTrackDesignRepository();
-    if (RideTypeDescriptors[item.Type].HasFlag(RIDE_TYPE_FLAG_HAS_RIDE_GROUPS))
+    std::string entryName;
+    if (item.Type < 0x80)
     {
-        auto rideEntry = get_ride_entry(item.EntryIndex);
-        if (rideEntry != nullptr)
+        if (RideTypeDescriptors[item.Type].HasFlag(RIDE_TYPE_FLAG_LIST_VEHICLES_SEPARATELY))
         {
-            auto rideGroup = RideGroupManager::GetRideGroup(item.Type, rideEntry);
-            if (rideGroup != nullptr)
-            {
-                _trackDesigns = repo->GetItemsForRideGroup(item.Type, rideGroup);
-            }
+            entryName = get_ride_entry_name(item.EntryIndex);
         }
     }
-    else
-    {
-        std::string entryName;
-        if (item.Type < 0x80)
-        {
-            if (RideTypeDescriptors[item.Type].HasFlag(RIDE_TYPE_FLAG_LIST_VEHICLES_SEPARATELY))
-            {
-                entryName = get_ride_entry_name(item.EntryIndex);
-            }
-        }
-        _trackDesigns = repo->GetItemsForObjectEntry(item.Type, entryName);
-    }
+    _trackDesigns = repo->GetItemsForObjectEntry(item.Type, entryName);
 
     window_track_list_filter_list();
 }
