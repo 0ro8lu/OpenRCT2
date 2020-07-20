@@ -56,7 +56,6 @@
 #include "CableLift.h"
 #include "MusicList.h"
 #include "RideData.h"
-#include "RideGroupManager.h"
 #include "ShopItem.h"
 #include "Station.h"
 #include "Track.h"
@@ -975,7 +974,7 @@ void ride_construct(Ride* ride)
 
         rct_window* w = window_get_main();
         if (w != nullptr && ride_modify(&trackElement))
-            window_scroll_to_location(w, trackElement.x, trackElement.y, trackElement.element->GetBaseZ());
+            window_scroll_to_location(w, { trackElement, trackElement.element->GetBaseZ() });
     }
     else
     {
@@ -4322,7 +4321,7 @@ static constexpr const CoordsXY word_9A2A60[] = {
  *  rct2: 0x006DD90D
  */
 static Vehicle* vehicle_create_car(
-    ride_id_t rideIndex, int32_t vehicleEntryIndex, int32_t carIndex, int32_t vehicleIndex, int32_t x, int32_t y, int32_t z,
+    ride_id_t rideIndex, int32_t vehicleEntryIndex, int32_t carIndex, int32_t vehicleIndex, const CoordsXYZ& carPosition,
     int32_t* remainingDistance, TileElement* tileElement)
 {
     auto ride = get_ride(rideIndex);
@@ -4392,13 +4391,11 @@ static Vehicle* vehicle_create_car(
         // loc_6DDCA4:
         vehicle->TrackSubposition = VEHICLE_TRACK_SUBPOSITION_0;
         int32_t direction = tileElement->GetDirection();
-        x += word_9A3AB4[direction].x;
-        y += word_9A3AB4[direction].y;
-        z = tileElement->GetBaseZ();
-        vehicle->TrackLocation = { x, y, z };
+        auto dodgemPos = carPosition + CoordsXYZ{ word_9A3AB4[direction], 0 };
+        vehicle->TrackLocation = dodgemPos;
         vehicle->current_station = tileElement->AsTrack()->GetStationIndex();
 
-        z += RideTypeDescriptors[ride->type].Heights.VehicleZOffset;
+        dodgemPos.z += RideTypeDescriptors[ride->type].Heights.VehicleZOffset;
 
         vehicle->track_type = tileElement->AsTrack()->GetTrackType() << 2;
         vehicle->track_progress = 0;
@@ -4410,11 +4407,11 @@ static Vehicle* vehicle_create_car(
         do
         {
             vehicle->sprite_direction = scenario_rand() & 0x1E;
-            chosenLoc.y = y + (scenario_rand() & 0xFF);
-            chosenLoc.x = x + (scenario_rand() & 0xFF);
+            chosenLoc.y = dodgemPos.y + (scenario_rand() & 0xFF);
+            chosenLoc.x = dodgemPos.x + (scenario_rand() & 0xFF);
         } while (vehicle->DodgemsCarWouldCollideAt(chosenLoc, nullptr));
 
-        vehicle->MoveTo({ chosenLoc.x, chosenLoc.y, z });
+        vehicle->MoveTo({ chosenLoc, dodgemPos.z });
     }
     else
     {
@@ -4452,7 +4449,9 @@ static Vehicle* vehicle_create_car(
             subposition = VEHICLE_TRACK_SUBPOSITION_REVERSER_RC_REAR_BOGIE;
         }
         vehicle->TrackSubposition = subposition;
-        vehicle->TrackLocation = { x, y, tileElement->GetBaseZ() };
+
+        auto chosenLoc = carPosition;
+        vehicle->TrackLocation = chosenLoc;
 
         int32_t direction = tileElement->GetDirection();
         vehicle->sprite_direction = direction << 3;
@@ -4482,14 +4481,11 @@ static Vehicle* vehicle_create_car(
             }
         }
 
-        x += word_9A2A60[direction].x;
-        y += word_9A2A60[direction].y;
+        chosenLoc += CoordsXYZ{ word_9A2A60[direction], RideTypeDescriptors[ride->type].Heights.VehicleZOffset };
 
         vehicle->current_station = tileElement->AsTrack()->GetStationIndex();
-        z = tileElement->GetBaseZ();
-        z += RideTypeDescriptors[ride->type].Heights.VehicleZOffset;
 
-        vehicle->MoveTo({ x, y, z });
+        vehicle->MoveTo(chosenLoc);
         vehicle->track_type = (tileElement->AsTrack()->GetTrackType() << 2) | (vehicle->sprite_direction >> 3);
         vehicle->track_progress = 31;
         if (vehicleEntry->flags & VEHICLE_ENTRY_FLAG_MINI_GOLF)
@@ -4519,8 +4515,7 @@ static Vehicle* vehicle_create_car(
  *  rct2: 0x006DD84C
  */
 static train_ref vehicle_create_train(
-    ride_id_t rideIndex, int32_t x, int32_t y, int32_t z, int32_t vehicleIndex, int32_t* remainingDistance,
-    TileElement* tileElement)
+    ride_id_t rideIndex, const CoordsXYZ& trainPos, int32_t vehicleIndex, int32_t* remainingDistance, TileElement* tileElement)
 {
     train_ref train = { nullptr, nullptr };
     auto ride = get_ride(rideIndex);
@@ -4529,7 +4524,7 @@ static train_ref vehicle_create_train(
         for (int32_t carIndex = 0; carIndex < ride->num_cars_per_train; carIndex++)
         {
             auto vehicle = ride_entry_get_vehicle_at_position(ride->subtype, ride->num_cars_per_train, carIndex);
-            auto car = vehicle_create_car(rideIndex, vehicle, carIndex, vehicleIndex, x, y, z, remainingDistance, tileElement);
+            auto car = vehicle_create_car(rideIndex, vehicle, carIndex, vehicleIndex, trainPos, remainingDistance, tileElement);
             if (car == nullptr)
                 break;
 
@@ -4550,7 +4545,7 @@ static train_ref vehicle_create_train(
     return train;
 }
 
-static void vehicle_create_trains(ride_id_t rideIndex, int32_t x, int32_t y, int32_t z, TileElement* tileElement)
+static void vehicle_create_trains(ride_id_t rideIndex, const CoordsXYZ& trainsPos, TileElement* tileElement)
 {
     auto ride = get_ride(rideIndex);
     if (ride == nullptr)
@@ -4566,7 +4561,7 @@ static void vehicle_create_trains(ride_id_t rideIndex, int32_t x, int32_t y, int
         {
             remainingDistance = 0;
         }
-        train_ref train = vehicle_create_train(rideIndex, x, y, z, vehicleIndex, &remainingDistance, tileElement);
+        train_ref train = vehicle_create_train(rideIndex, trainsPos, vehicleIndex, &remainingDistance, tileElement);
         if (vehicleIndex == 0)
         {
             firstTrain = train;
@@ -4679,7 +4674,7 @@ static void ride_create_vehicles_find_first_block(Ride* ride, CoordsXYE* outXYEl
  *
  *  rct2: 0x006DD84C
  */
-static bool ride_create_vehicles(Ride* ride, CoordsXYE* element, int32_t isApplying)
+static bool ride_create_vehicles(Ride* ride, const CoordsXYE& element, int32_t isApplying)
 {
     ride->UpdateMaxVehicles();
     if (ride->subtype == RIDE_ENTRY_INDEX_NULL)
@@ -4700,25 +4695,22 @@ static bool ride_create_vehicles(Ride* ride, CoordsXYE* element, int32_t isApply
         return true;
     }
 
-    TileElement* tileElement = element->element;
-    int32_t x = element->x;
-    int32_t y = element->y;
-    int32_t z = element->element->base_height;
+    TileElement* tileElement = element.element;
+    auto vehiclePos = CoordsXYZ{ element, element.element->GetBaseZ() };
     int32_t direction = tileElement->GetDirection();
 
     //
     if (ride->mode == RIDE_MODE_STATION_TO_STATION)
     {
-        x = element->x - CoordsDirectionDelta[direction].x;
-        y = element->y - CoordsDirectionDelta[direction].y;
+        vehiclePos -= CoordsXYZ{ CoordsDirectionDelta[direction], 0 };
 
-        tileElement = reinterpret_cast<TileElement*>(map_get_track_element_at({ x, y, z << 3 }));
+        tileElement = reinterpret_cast<TileElement*>(map_get_track_element_at(vehiclePos));
 
-        z = tileElement->base_height;
+        vehiclePos.z = tileElement->GetBaseZ();
         direction = tileElement->GetDirection();
     }
 
-    vehicle_create_trains(ride->id, x, y, z, tileElement);
+    vehicle_create_trains(ride->id, vehiclePos, tileElement);
     // return true;
 
     // Initialise station departs
@@ -5039,7 +5031,7 @@ static void loc_6B51C0(const Ride* ride)
     if (ride->type != RIDE_TYPE_MAZE)
     {
         auto location = ride->stations[i].GetStart();
-        window_scroll_to_location(w, location.x, location.y, location.z);
+        window_scroll_to_location(w, location);
 
         CoordsXYE trackElement;
         ride_try_get_origin_element(ride, &trackElement);
@@ -5065,7 +5057,7 @@ static void ride_scroll_to_track_error(CoordsXYE* trackElement)
     rct_window* w = window_get_main();
     if (w != nullptr)
     {
-        window_scroll_to_location(w, trackElement->x, trackElement->y, trackElement->element->GetBaseZ());
+        window_scroll_to_location(w, { *trackElement, trackElement->element->GetBaseZ() });
         ride_modify(trackElement);
     }
 }
@@ -5224,7 +5216,7 @@ int32_t ride_is_valid_for_test(Ride* ride, int32_t status, bool isApplying)
 
     if (!ride_type_has_flag(ride->type, RIDE_TYPE_FLAG_NO_VEHICLES) && !(ride->lifecycle_flags & RIDE_LIFECYCLE_ON_TRACK))
     {
-        if (!ride_create_vehicles(ride, &trackElement, isApplying))
+        if (!ride_create_vehicles(ride, trackElement, isApplying))
         {
             return 0;
         }
@@ -5358,7 +5350,7 @@ int32_t ride_is_valid_for_open(Ride* ride, int32_t goingToBeOpen, bool isApplyin
 
     if (!ride_type_has_flag(ride->type, RIDE_TYPE_FLAG_NO_VEHICLES) && !(ride->lifecycle_flags & RIDE_LIFECYCLE_ON_TRACK))
     {
-        if (!ride_create_vehicles(ride, &trackElement, isApplying))
+        if (!ride_create_vehicles(ride, trackElement, isApplying))
         {
             return 0;
         }
@@ -5630,12 +5622,7 @@ void Ride::SetNameToDefault()
  */
 RideNaming get_ride_naming(const uint8_t rideType, rct_ride_entry* rideEntry)
 {
-    if (RideTypeDescriptors[rideType].HasFlag(RIDE_TYPE_FLAG_HAS_RIDE_GROUPS))
-    {
-        const RideGroup* rideGroup = RideGroupManager::GetRideGroup(rideType, rideEntry);
-        return rideGroup->Naming;
-    }
-    else if (!RideTypeDescriptors[rideType].HasFlag(RIDE_TYPE_FLAG_LIST_VEHICLES_SEPARATELY))
+    if (!RideTypeDescriptors[rideType].HasFlag(RIDE_TYPE_FLAG_LIST_VEHICLES_SEPARATELY))
     {
         return RideTypeDescriptors[rideType].Naming;
     }
@@ -7638,18 +7625,6 @@ void Ride::FormatNameTo(Formatter& ft) const
             if (rideEntry != nullptr)
             {
                 rideTypeName = rideEntry->naming.Name;
-            }
-        }
-        else if (RideTypeDescriptors[type].HasFlag(RIDE_TYPE_FLAG_HAS_RIDE_GROUPS))
-        {
-            auto rideEntry = GetRideEntry();
-            if (rideEntry != nullptr)
-            {
-                auto rideGroup = RideGroupManager::GetRideGroup(type, rideEntry);
-                if (rideGroup != nullptr)
-                {
-                    rideTypeName = rideGroup->Naming.Name;
-                }
             }
         }
         ft.Add<rct_string_id>(1).Add<rct_string_id>(rideTypeName).Add<uint16_t>(default_name_number);

@@ -16,7 +16,6 @@
 #include "../localisation/StringIds.h"
 #include "../management/Finance.h"
 #include "../network/network.h"
-#include "../ride/RideGroupManager.h"
 #include "../ride/Track.h"
 #include "../ride/TrackData.h"
 #include "Banner.h"
@@ -35,26 +34,13 @@
  */
 void wall_remove_at(const CoordsXYRangedZ& wallPos)
 {
-    TileElement* tileElement;
-
-repeat:
-    tileElement = map_get_first_element_at(wallPos);
-    if (tileElement == nullptr)
-        return;
-    do
+    for (auto wallElement = map_get_wall_element_at(wallPos); wallElement != nullptr;
+         wallElement = map_get_wall_element_at(wallPos))
     {
-        if (tileElement->GetType() != TILE_ELEMENT_TYPE_WALL)
-            continue;
-        if (wallPos.baseZ >= tileElement->GetClearanceZ())
-            continue;
-        if (wallPos.clearanceZ <= tileElement->GetBaseZ())
-            continue;
-
-        tile_element_remove_banner_entry(tileElement);
-        map_invalidate_tile_zoom1({ wallPos, tileElement->GetBaseZ(), tileElement->GetBaseZ() + 72 });
-        tile_element_remove(tileElement);
-        goto repeat;
-    } while (!(tileElement++)->IsLastForTile());
+        tile_element_remove_banner_entry(reinterpret_cast<TileElement*>(wallElement));
+        map_invalidate_tile_zoom1({ wallPos, wallElement->GetBaseZ(), wallElement->GetBaseZ() + 72 });
+        tile_element_remove(reinterpret_cast<TileElement*>(wallElement));
+    }
 }
 
 /**

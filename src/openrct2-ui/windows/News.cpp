@@ -34,8 +34,8 @@ enum WINDOW_NEWS_WIDGET_IDX {
 
 static rct_widget window_news_widgets[] = {
     WINDOW_SHIM(WINDOW_TITLE, WW, WH),
-    { WWT_FLATBTN,          0,  372,        395,    18,     41,     SPR_TAB_GEARS_0,        STR_NONE },             // settings
-    { WWT_SCROLL,           0,  4,          395,    44,     295,    SCROLL_VERTICAL,                        STR_NONE },             // scroll
+    MakeWidget({372, 18}, { 24,  24}, WWT_FLATBTN, 0, SPR_TAB_GEARS_0), // settings
+    MakeWidget({  4, 44}, {392, 252}, WWT_SCROLL,  0, SCROLL_VERTICAL), // scroll
     { WIDGETS_END },
 };
 
@@ -163,7 +163,7 @@ static void window_news_update(rct_window* w)
         auto subjectLoc = news_item_get_subject_location(newsItem.Type, newsItem.Assoc);
         if (subjectLoc != std::nullopt && (w = window_get_main()) != nullptr)
         {
-            window_scroll_to_location(w, subjectLoc->x, subjectLoc->y, subjectLoc->z);
+            window_scroll_to_location(w, *subjectLoc);
         }
     }
 }

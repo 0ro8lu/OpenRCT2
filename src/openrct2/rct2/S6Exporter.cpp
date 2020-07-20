@@ -439,7 +439,7 @@ void S6Exporter::ExportPeepSpawns()
         }
         else
         {
-            _s6.peep_spawns[i] = { PEEP_SPAWN_UNDEFINED, PEEP_SPAWN_UNDEFINED, 0, 0 };
+            _s6.peep_spawns[i] = { RCT12_PEEP_SPAWN_UNDEFINED, RCT12_PEEP_SPAWN_UNDEFINED, 0, 0 };
         }
     }
 }
@@ -500,7 +500,7 @@ void S6Exporter::ExportRide(rct2_ride* dst, const Ride* src)
 {
     std::memset(dst, 0, sizeof(rct2_ride));
 
-    dst->type = src->type;
+    dst->type = OpenRCT2RideTypeToRCT2RideType(src->type);
     dst->subtype = src->subtype;
     // pad_002;
     dst->mode = src->mode;
